@@ -72,6 +72,18 @@ export const authApi = {
     api.post('/auth/send-code', { phone }),
   verify: (phone: string, code: string, display_name?: string) =>
     api.post('/auth/verify', { phone, code, display_name }),
+  loginPassword: (login: string, password: string) =>
+    api.post('/auth/login-password', { login, password }),
+  registerPassword: (data: {
+    username: string;
+    display_name: string;
+    password: string;
+    phone?: string;
+    email?: string;
+  }) => api.post('/auth/register-password', data),
+  demoLogin: (user_type: string) =>
+    api.post('/auth/demo-login', { user_type }),
+  logout: () => api.post('/auth/logout').catch(() => {}),
 };
 
 // ─── Users ───────────────────────────────────────────────────────────────────

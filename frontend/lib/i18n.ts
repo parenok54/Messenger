@@ -23,6 +23,22 @@ export interface Translations {
   emptyCode: string;
   loginSuccess: string;
   codeSent: string;
+  authTabPhone: string;
+  authTabPassword: string;
+  authTabDemo: string;
+  resendCodeIn: (sec: number) => string;
+  resendCodeBtn: string;
+  passwordLabel: string;
+  passwordPlaceholder: string;
+  usernameLabel: string;
+  usernamePlaceholder: string;
+  loginOrEmailLabel: string;
+  loginOrEmailPlaceholder: string;
+  dontHaveAccount: string;
+  alreadyHaveAccount: string;
+  registerBtn: string;
+  quickDemoTitle: string;
+  quickDemoSubtitle: string;
 
   // Main / Sidebar
   searchPlaceholder: string;
@@ -176,6 +192,22 @@ export const translations: Record<Lang, Translations> = {
     emptyCode: 'Введите код подтверждения',
     loginSuccess: 'Успешный вход!',
     codeSent: 'Код отправлен!',
+    authTabPhone: 'По номеру',
+    authTabPassword: 'По паролю',
+    authTabDemo: '⚡ Демо-вход',
+    resendCodeIn: (sec) => `Повтор через ${sec}с`,
+    resendCodeBtn: 'Отправить код повторно',
+    passwordLabel: 'Пароль',
+    passwordPlaceholder: 'Введите ваш пароль',
+    usernameLabel: 'Логин (username)',
+    usernamePlaceholder: 'например: alex_dev',
+    loginOrEmailLabel: 'Логин, email или телефон',
+    loginOrEmailPlaceholder: 'alex_dev, email или телефон',
+    dontHaveAccount: 'Нет аккаунта? Зарегистрироваться',
+    alreadyHaveAccount: 'Уже есть аккаунт? Войти',
+    registerBtn: 'Зарегистрироваться',
+    quickDemoTitle: 'Быстрый вход для тестирования',
+    quickDemoSubtitle: 'Войдите в один клик под готовым тестовым профилем:',
 
     searchPlaceholder: 'Поиск собеседников...',
     foundUsers: 'Найденные пользователи',
@@ -323,6 +355,22 @@ export const translations: Record<Lang, Translations> = {
     emptyCode: 'Ырастоо кодун киргизиңиз',
     loginSuccess: 'Ийгиликтүү кирдиңиз!',
     codeSent: 'Код жөнөтүлдү!',
+    authTabPhone: 'Номер менен',
+    authTabPassword: 'Сырсөз менен',
+    authTabDemo: '⚡ Демо кирүү',
+    resendCodeIn: (sec) => `Кайра жөнөтүү: ${sec}сек`,
+    resendCodeBtn: 'Кодду кайра жөнөтүү',
+    passwordLabel: 'Сырсөз',
+    passwordPlaceholder: 'Сырсөзүңүздү киргизиңиз',
+    usernameLabel: 'Логин (username)',
+    usernamePlaceholder: 'мисалы: alex_dev',
+    loginOrEmailLabel: 'Логин, email же телефон',
+    loginOrEmailPlaceholder: 'alex_dev, email же телефон',
+    dontHaveAccount: 'Аккаунтуңуз жокпу? Катталуу',
+    alreadyHaveAccount: 'Аккаунтуңуз барбы? Кирүү',
+    registerBtn: 'Катталуу',
+    quickDemoTitle: 'Сыноо үчүн тез кирүү',
+    quickDemoSubtitle: 'Даяр сыноо профилин тандап бир басуу менен кириңиз:',
 
     searchPlaceholder: 'Маектештерди издөө...',
     foundUsers: 'Табылган колдонуучулар',
@@ -470,6 +518,22 @@ export const translations: Record<Lang, Translations> = {
     emptyCode: 'Please enter the verification code',
     loginSuccess: 'Successfully signed in!',
     codeSent: 'Code sent!',
+    authTabPhone: 'By Phone',
+    authTabPassword: 'Password',
+    authTabDemo: '⚡ Demo Login',
+    resendCodeIn: (sec) => `Resend in ${sec}s`,
+    resendCodeBtn: 'Resend code',
+    passwordLabel: 'Password',
+    passwordPlaceholder: 'Enter your password',
+    usernameLabel: 'Username',
+    usernamePlaceholder: 'e.g. alex_dev',
+    loginOrEmailLabel: 'Username, email or phone',
+    loginOrEmailPlaceholder: 'alex_dev, email or phone',
+    dontHaveAccount: "Don't have an account? Sign up",
+    alreadyHaveAccount: 'Already have an account? Sign in',
+    registerBtn: 'Create account',
+    quickDemoTitle: 'Quick Demo Access',
+    quickDemoSubtitle: 'Sign in instantly with a preconfigured demo account:',
 
     searchPlaceholder: 'Search conversations...',
     foundUsers: 'Found users',

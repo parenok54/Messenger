@@ -17,6 +17,8 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     verify_token,
+    hash_password,
+    verify_password,
 )
 from app.ws.gateway import _parse_uuid
 
@@ -130,3 +132,14 @@ def test_parse_uuid_returns_none_instead_of_raising(value):
 def test_parse_uuid_valid():
     value = str(uuid.uuid4())
     assert _parse_uuid(value) == uuid.UUID(value)
+
+
+# ─── Хеширование паролей ───────────────────────────────────────────────────
+
+def test_password_hash_and_verify():
+    raw_pwd = "mySuperSecretPassword123"
+    hashed = hash_password(raw_pwd)
+    assert hashed != raw_pwd
+    assert verify_password(raw_pwd, hashed) is True
+    assert verify_password("wrongPassword", hashed) is False
+    assert verify_password("", hashed) is False

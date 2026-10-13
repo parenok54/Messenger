@@ -48,6 +48,9 @@ async def create_tables():
             "ALTER TABLE chat_members ADD COLUMN IF NOT EXISTS can_pin_messages BOOLEAN DEFAULT FALSE NOT NULL",
             "ALTER TABLE chat_members ADD COLUMN IF NOT EXISTS can_change_info BOOLEAN DEFAULT FALSE NOT NULL",
             "ALTER TABLE chat_members ADD COLUMN IF NOT EXISTS can_post_messages BOOLEAN DEFAULT TRUE NOT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(128)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)",
+            "ALTER TABLE users ALTER COLUMN phone DROP NOT NULL",
         ]
         for col_query in columns:
             try:
