@@ -8,7 +8,8 @@ export interface TokenResponse {
 // ─── User ────────────────────────────────────────────────
 export interface User {
   id: string;
-  phone: string;
+  phone?: string | null;
+  email?: string | null;
   username: string | null;
   display_name: string;
   bio: string | null;

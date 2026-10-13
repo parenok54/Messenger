@@ -3,13 +3,24 @@ from typing import Optional
 
 
 class SendCodeRequest(BaseModel):
-    phone: str  # Формат: +79991234567
+    identifier: Optional[str] = None  # Номер телефона или Email
+    phone: Optional[str] = None       # Для обратной совместимости
+    email: Optional[str] = None
+    purpose: Optional[str] = "login"  # "login" | "register"
+    reg_phone: Optional[str] = None   # Обязательный телефон при регистрации по email
+    display_name: Optional[str] = None
+    link_email: Optional[str] = None  # Почта для привязки к аккаунту без email
 
 
 class VerifyCodeRequest(BaseModel):
-    phone: str
+    identifier: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
     code: str
-    display_name: Optional[str] = None  # При первой регистрации
+    display_name: Optional[str] = None  # При регистрации
+    username: Optional[str] = None      # При регистрации
+    reg_phone: Optional[str] = None     # Обязательный телефон при регистрации
+    link_email: Optional[str] = None    # Почта для привязки к аккаунту при верификации
 
 
 class TokenResponse(BaseModel):

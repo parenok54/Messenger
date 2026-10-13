@@ -6,7 +6,7 @@ import { usersApi } from '@/lib/api';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { soundEffects } from '@/lib/sound';
 import { pushNotifications } from '@/lib/notifications';
-import { X, Camera, User, AtSign, FileText, Check, Loader2, Volume2, VolumeX, Bell } from 'lucide-react';
+import { X, Camera, User, AtSign, FileText, Check, Loader2, Volume2, VolumeX, Bell, Mail, Phone, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface ProfileModalProps {
@@ -22,6 +22,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [displayName, setDisplayName] = useState(user?.display_name || '');
   const [username, setUsername] = useState(user?.username || '');
   const [bio, setBio] = useState(user?.bio || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -50,6 +51,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         display_name: displayName.trim(),
         username: username.trim() || undefined,
         bio: bio.trim() || undefined,
+        email: email.trim() || undefined,
       });
       setUser(res.data);
       toast.success('Профиль успешно обновлен!');
@@ -195,6 +197,61 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 placeholder="Расскажите немного о себе..."
                 className="w-full rounded-xl bg-[#242f3d] py-2.5 pl-9 pr-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#2AABEE] resize-none"
               />
+            </div>
+          </div>
+
+          {/* Телефон и Электронная почта */}
+          <div className="space-y-3 pt-1">
+            {user.phone && (
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-300">
+                  Номер телефона
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-3 text-gray-500" size={16} />
+                  <input
+                    type="text"
+                    value={user.phone}
+                    disabled
+                    className="w-full rounded-xl bg-[#1d2633] py-2.5 pl-9 pr-3 text-sm text-gray-400 font-mono border border-white/5 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-gray-300">
+                  Электронная почта (Email)
+                </label>
+                {!user.email && (
+                  <span className="text-[11px] font-semibold text-amber-400 flex items-center space-x-1">
+                    <AlertCircle size={12} />
+                    <span>Не привязана</span>
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 text-gray-500" size={16} />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your.email@gmail.com"
+                  className={`w-full rounded-xl bg-[#242f3d] py-2.5 pl-9 pr-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#2AABEE] ${
+                    !user.email ? 'border border-amber-500/40 ring-1 ring-amber-500/20' : ''
+                  }`}
+                />
+              </div>
+              {!user.email ? (
+                <p className="mt-1.5 text-[11px] text-amber-300/90 leading-tight">
+                  ⚠️ К вашему аккаунту не привязана почта. Добавьте её, чтобы безопасно входить в систему.
+                </p>
+              ) : (
+                <p className="mt-1 text-[11px] text-gray-500">
+                  На эту почту приходят проверочные коды при входе
+                </p>
+              )}
             </div>
           </div>
 

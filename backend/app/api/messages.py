@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.core.storage import upload_file
 from app.models.user import User
 from app.models.message import Message, MessageType
+from app.models.chat import Chat, ChatType, MemberRole
 from app.schemas.message import (
     MessageCreate,
     MessageUpdate,
@@ -78,13 +79,13 @@ async def send_message(
 async def send_file(
     chat_id: uuid.UUID,
     file: UploadFile = File(...),
-    reply_to_id: Optional[uuid.UUID] = None,
+    reply_to_id: Optional[uuid.UUID] = Form(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Отправить файл/медиа."""
     ct = file.content_type or ""
-    if not settings.is_allowed_message_content_type(ct):
+    if not settings.is_allowed_message_content_type(ct, file.filename):
         raise HTTPException(400, "Недопустимый тип файла")
 
     file_bytes = await file.read()
@@ -116,12 +117,14 @@ async def send_file(
     url = await upload_file(file_bytes, file.filename, ct)
 
     # Определить тип сообщения
+    fn_lower = (file.filename or "").lower()
+    is_voice = fn_lower.startswith("voice_") or "voice" in fn_lower or fn_lower.endswith(".opus")
     if ct.startswith("image/"):
         msg_type = MessageType.image
     elif ct.startswith("video/"):
         msg_type = MessageType.video
-    elif ct.startswith("audio/"):
-        msg_type = MessageType.audio
+    elif ct.startswith("audio/") or fn_lower.endswith((".mp3", ".ogg", ".wav", ".m4a", ".aac", ".flac", ".webm", ".opus")):
+        msg_type = MessageType.voice if is_voice else MessageType.audio
     else:
         msg_type = MessageType.file
 

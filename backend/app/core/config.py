@@ -23,10 +23,25 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # Telegram Bot (Бесплатная доставка кодов в Telegram)
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_BOT_USERNAME: str = ""
+
+    # SMS.RU (Рекомендуемый SMS-шлюз для РФ и СНГ)
+    SMSRU_API_KEY: str = ""
+
     # Twilio (SMS-коды подтверждения)
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_PHONE_NUMBER: str = ""
+
+    # SMTP (Email-коды подтверждения)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_USE_TLS: bool = True
 
     # Загрузки файлов
     UPLOAD_DIR: str = "uploads"
@@ -34,13 +49,16 @@ class Settings(BaseSettings):
     MAX_AVATAR_SIZE: int = 5 * 1024 * 1024      # 5 МБ
     MAX_MESSAGE_FILE_SIZE: int = 25 * 1024 * 1024  # 25 МБ
     ALLOWED_MESSAGE_CONTENT_TYPES: str = (
-        "image/,video/,audio/,application/pdf,text/plain,"
-        "application/zip,application/msword,"
-        "application/vnd.openxmlformats-officedocument."
+        "image/,video/,audio/,application/pdf,text/,"
+        "application/zip,application/x-zip-compressed,application/x-rar-compressed,"
+        "application/vnd.rar,application/x-7z-compressed,application/x-tar,application/gzip,"
+        "application/msword,application/vnd.openxmlformats-officedocument.,"
+        "application/vnd.ms-excel,application/vnd.ms-powerpoint,application/rtf,application/json"
     )
     # Типы, которые формально матчатся белым списком, но опасны:
-    # SVG может содержать <script> → XSS при открытии в браузере.
-    BLOCKED_MESSAGE_CONTENT_TYPES: str = "image/svg+xml,image/svg"
+    # SVG/HTML/JS может содержать <script> → XSS при открытии в браузере.
+    BLOCKED_MESSAGE_CONTENT_TYPES: str = "image/svg+xml,image/svg,text/html,application/javascript,text/javascript"
+    BLOCKED_EXTENSIONS: str = "exe,bat,cmd,sh,php,py,js,html,htm,svg,vbs,msi,com,scr,pif"
 
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8081"
@@ -57,12 +75,14 @@ class Settings(BaseSettings):
     def blocked_message_content_types(self) -> List[str]:
         return [p.strip().lower() for p in self.BLOCKED_MESSAGE_CONTENT_TYPES.split(",") if p.strip()]
 
-    def is_allowed_message_content_type(self, content_type: str | None) -> bool:
+    def is_allowed_message_content_type(self, content_type: str | None, filename: str | None = None) -> bool:
         """
         Проверить MIME-тип вложения.
         1. Отбрасываются параметры вида "; charset=utf-8".
-        2. Сначала проверяется блок-лист (svg и т.п.) — он приоритетнее белого списка.
-        3. Затем сопоставление с разрешёнными префиксами.
+        2. Сначала проверяется блок-лист (svg, html, js и т.п.) — он приоритетнее белого списка.
+        3. Если передан filename — проверяется расширение на запрещённые исполняемые файлы.
+        4. Если octet-stream — разрешается только при наличии безопасного расширения у filename.
+        5. Затем сопоставление с разрешёнными префиксами.
         """
         if not content_type:
             return False
@@ -70,6 +90,23 @@ class Settings(BaseSettings):
         normalized = content_type.split(";", 1)[0].strip().lower()
         if normalized in self.blocked_message_content_types:
             return False
+
+        if filename and "." in filename:
+            ext = filename.rsplit(".", 1)[-1].lower().strip()
+            blocked_exts = {e.strip().lower() for e in self.BLOCKED_EXTENSIONS.split(",") if e.strip()}
+            if ext in blocked_exts:
+                return False
+
+        if normalized == "application/octet-stream":
+            if not filename or "." not in filename:
+                return False
+            ext = filename.rsplit(".", 1)[-1].lower().strip()
+            safe_exts = {
+                "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "json",
+                "zip", "rar", "7z", "tar", "gz", "mp3", "ogg", "wav", "m4a", "flac",
+                "mp4", "webm", "mov", "avi", "mkv", "jpg", "jpeg", "png", "gif", "webp"
+            }
+            return ext in safe_exts
 
         return any(
             normalized.startswith(prefix.strip().lower())

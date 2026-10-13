@@ -61,6 +61,7 @@ export function CallModal({ call, onClose }: CallModalProps) {
   const modalContainerRef = useRef<HTMLDivElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const videoTransceiverRef = useRef<RTCRtpTransceiver | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -85,6 +86,18 @@ export function CallModal({ call, onClose }: CallModalProps) {
     };
   }, [isConnected]);
 
+  // Гарантированная привязка удаленного медиапотока к video/audio тегам
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteMediaStreamRef.current) {
+      remoteVideoRef.current.srcObject = remoteMediaStreamRef.current;
+      remoteVideoRef.current.play().catch(() => {});
+    }
+    if (remoteAudioRef.current && remoteMediaStreamRef.current) {
+      remoteAudioRef.current.srcObject = remoteMediaStreamRef.current;
+      remoteAudioRef.current.play().catch(() => {});
+    }
+  }, [remoteHasVideo, isConnected]);
+
   const formatDuration = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
@@ -93,31 +106,122 @@ export function CallModal({ call, onClose }: CallModalProps) {
 
   // Инициализация WebRTC
   useEffect(() => {
-    let pc: RTCPeerConnection;
+    let pc: RTCPeerConnection | null = null;
     let audioAnalyserCtx: AudioContext | null = null;
     let audioAnalyserInterval: any = null;
+    let isPcReady = false;
+    const earlySignalingQueue: any[] = [];
 
     if (!call.isIncoming) {
       soundEffects.startOutgoingRingtone();
     }
 
+    const processSignalingMessage = async (data: any, activePc: RTCPeerConnection) => {
+      if (data.type === 'call_answer' && data.from_user_id === call.targetUserId) {
+        try {
+          await activePc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          isRemoteDescriptionSet.current = true;
+          soundEffects.stopCallSounds();
+
+          // Сбрасываем накопленные ICE кандидаты
+          while (iceCandidatesQueue.current.length > 0) {
+            const cand = iceCandidatesQueue.current.shift();
+            if (cand) {
+              await activePc.addIceCandidate(new RTCIceCandidate(cand)).catch((e) => console.warn('ICE add error:', e));
+            }
+          }
+        } catch (err) {
+          console.error('Error applying call_answer:', err);
+        }
+      } else if (data.type === 'ice_candidate' && data.from_user_id === call.targetUserId) {
+        const cand = data.candidate;
+        if (cand) {
+          if (isRemoteDescriptionSet.current && activePc.remoteDescription) {
+            try {
+              await activePc.addIceCandidate(new RTCIceCandidate(cand));
+            } catch (e) {
+              console.warn('Error adding ICE candidate:', e);
+            }
+          } else {
+            iceCandidatesQueue.current.push(cand);
+          }
+        }
+      } else if (data.type === 'media_state' && data.from_user_id === call.targetUserId) {
+        setRemoteHasVideo(Boolean(data.is_video_enabled));
+      } else if (data.type === 'call_end') {
+        soundEffects.stopCallSounds();
+        soundEffects.playCallEnd();
+        if (data.reason === 'busy') {
+          toast('Собеседник занят');
+        } else if (data.reason === 'declined') {
+          toast('Вызов отклонен');
+        } else {
+          toast('Звонок завершен');
+        }
+        endCall(false);
+      }
+    };
+
+    // Мгновенная подписка на события сигналинга без задержки на getUserMedia
+    const unsubscribe = subscribeToCallEvents(async (data: any) => {
+      if (data.type === 'call_end') {
+        soundEffects.stopCallSounds();
+        soundEffects.playCallEnd();
+        if (data.reason === 'busy') {
+          toast('Собеседник занят');
+        } else if (data.reason === 'declined') {
+          toast('Вызов отклонен');
+        } else {
+          toast('Звонок завершен');
+        }
+        endCall(false);
+        return;
+      }
+
+      if (!isPcReady || !pc) {
+        earlySignalingQueue.push(data);
+      } else {
+        await processSignalingMessage(data, pc);
+      }
+    });
+
     const setupCall = async () => {
       try {
-        // Запрос медиапотока (микрофон всегда + камера если видеовызов)
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-          video: call.isVideo
-            ? {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                frameRate: { ideal: 30 },
-              }
-            : false,
-        });
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+            video: call.isVideo
+              ? {
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                  frameRate: { ideal: 30 },
+                }
+              : false,
+          });
+        } catch (mediaErr) {
+          console.warn('getUserMedia failed with requested constraints, falling back to audio-only:', mediaErr);
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+              video: false,
+            });
+            setIsVideoEnabled(false);
+          } catch (audioErr) {
+            console.error('getUserMedia failed completely:', audioErr);
+            toast.error('Ошибка доступа к микрофону');
+            endCall();
+            return;
+          }
+        }
 
         localStreamRef.current = stream;
         const videoTrack = stream.getVideoTracks()[0] || null;
@@ -132,18 +236,11 @@ export function CallModal({ call, onClose }: CallModalProps) {
         peerConnectionRef.current = pc;
 
         // 1. Добавляем аудиотрек
-        stream.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
-
-        // 2. ВСЕГДА регистрируем видеотрансивер в SDP, даже при аудиозвонке!
-        // Это позволяет включить камеру на лету без сложной пере-инициализации SDP.
-        const videoTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
-        videoTransceiverRef.current = videoTransceiver;
-        if (videoTrack) {
-          videoTransceiver.sender.replaceTrack(videoTrack);
-        }
+        stream.getAudioTracks().forEach((track) => pc!.addTrack(track, stream));
 
         // Мониторинг статуса соединения WebRTC
         pc.onconnectionstatechange = () => {
+          if (!pc) return;
           const state = pc.connectionState;
           if (state === 'connected') {
             soundEffects.stopCallSounds();
@@ -165,21 +262,24 @@ export function CallModal({ call, onClose }: CallModalProps) {
           setIsConnected(true);
           setCallStatus('Идет разговор');
 
-          // Добавляем трек в общий remote MediaStream
           remoteMediaStreamRef.current.addTrack(event.track);
 
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = remoteMediaStreamRef.current;
             remoteVideoRef.current.play().catch(() => {});
           }
+          if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = remoteMediaStreamRef.current;
+            remoteAudioRef.current.play().catch(() => {});
+          }
 
           if (event.track.kind === 'video') {
+            setRemoteHasVideo(true);
             event.track.onunmute = () => {
               setRemoteHasVideo(true);
             };
           }
 
-          // Детекция речи собеседника через Web Audio API
           if (event.track.kind === 'audio' && typeof window !== 'undefined') {
             try {
               const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -203,65 +303,26 @@ export function CallModal({ call, onClose }: CallModalProps) {
           }
         };
 
-        // Отправка ICE-кандидатов
+        // Отправка ICE-кандидатов с chat_id
         pc.onicecandidate = (event) => {
           if (event.candidate) {
             sendWsRaw({
               type: 'ice_candidate',
               target_user_id: call.targetUserId,
               candidate: event.candidate,
+              chat_id: call.chatId,
             });
           }
         };
 
-        // Обработка сигналинга WebSocket
-        const unsubscribe = subscribeToCallEvents(async (data: any) => {
-          if (data.type === 'call_answer' && data.from_user_id === call.targetUserId) {
-            try {
-              await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-              isRemoteDescriptionSet.current = true;
-              soundEffects.stopCallSounds();
-
-              // Сбрасываем накопленные ICE кандидаты
-              while (iceCandidatesQueue.current.length > 0) {
-                const cand = iceCandidatesQueue.current.shift();
-                if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand));
-              }
-            } catch (err) {
-              console.error('Error applying call_answer:', err);
-            }
-          } else if (data.type === 'ice_candidate' && data.from_user_id === call.targetUserId) {
-            const cand = data.candidate;
-            if (cand) {
-              if (isRemoteDescriptionSet.current) {
-                try {
-                  await pc.addIceCandidate(new RTCIceCandidate(cand));
-                } catch (e) {
-                  console.error('Error adding ICE candidate:', e);
-                }
-              } else {
-                iceCandidatesQueue.current.push(cand);
-              }
-            }
-          } else if (data.type === 'media_state' && data.from_user_id === call.targetUserId) {
-            // Мгновенное переключение состояния видео от собеседника
-            setRemoteHasVideo(Boolean(data.is_video_enabled));
-          } else if (data.type === 'call_end') {
-            soundEffects.stopCallSounds();
-            soundEffects.playCallEnd();
-            if (data.reason === 'busy') {
-              toast('Собеседник занят');
-            } else if (data.reason === 'declined') {
-              toast('Вызов отклонен');
-            } else {
-              toast('Звонок завершен');
-            }
-            endCall(false);
-          }
-        });
-
-        // Исходящий звонок: создаем Offer (содержащий и audio, и video)
         if (!call.isIncoming) {
+          // Исходящий звонок: регистрируем видеотрансивер в SDP
+          const videoTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
+          videoTransceiverRef.current = videoTransceiver;
+          if (videoTrack) {
+            videoTransceiver.sender.replaceTrack(videoTrack);
+          }
+
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
 
@@ -273,13 +334,24 @@ export function CallModal({ call, onClose }: CallModalProps) {
             chat_id: call.chatId,
           });
         } else if (call.offer) {
-          // Входящий звонок: устанавливаем Remote Description и формируем Answer
+          // Входящий звонок: устанавливаем Remote Description
           await pc.setRemoteDescription(new RTCSessionDescription(call.offer));
           isRemoteDescriptionSet.current = true;
 
+          // Ищем созданный видео трансивер
+          const videoTransceiver = pc.getTransceivers().find((t) => t.receiver.track.kind === 'video');
+          if (videoTransceiver) {
+            videoTransceiverRef.current = videoTransceiver;
+            if (videoTrack) {
+              await videoTransceiver.sender.replaceTrack(videoTrack);
+            }
+          } else if (videoTrack) {
+            pc.addTrack(videoTrack, stream);
+          }
+
           while (iceCandidatesQueue.current.length > 0) {
             const cand = iceCandidatesQueue.current.shift();
-            if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand));
+            if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand)).catch((e) => console.warn(e));
           }
 
           const answer = await pc.createAnswer();
@@ -289,26 +361,31 @@ export function CallModal({ call, onClose }: CallModalProps) {
             type: 'call_answer',
             target_user_id: call.targetUserId,
             answer: answer,
+            chat_id: call.chatId,
           });
           soundEffects.stopCallSounds();
         }
 
-        return unsubscribe;
+        // Помечаем готовность PeerConnection и обрабатываем ранние сообщения
+        isPcReady = true;
+        while (earlySignalingQueue.length > 0) {
+          const queued = earlySignalingQueue.shift();
+          if (queued && pc) {
+            await processSignalingMessage(queued, pc);
+          }
+        }
       } catch (err) {
         console.error('Failed to setup WebRTC call:', err);
-        toast.error('Ошибка доступа к микрофону или камере');
+        toast.error('Ошибка инициализации звонка');
         endCall();
       }
     };
 
-    let unsub: (() => void) | undefined;
-    setupCall().then((u) => {
-      unsub = u;
-    });
+    setupCall();
 
     return () => {
       soundEffects.stopCallSounds();
-      if (unsub) unsub();
+      unsubscribe();
       if (audioAnalyserInterval) clearInterval(audioAnalyserInterval);
       if (audioAnalyserCtx) audioAnalyserCtx.close().catch(() => {});
       if (screenStreamRef.current) {
@@ -329,6 +406,7 @@ export function CallModal({ call, onClose }: CallModalProps) {
       sendWsRaw({
         type: 'call_end',
         target_user_id: call.targetUserId,
+        chat_id: call.chatId,
       });
     }
 
@@ -391,6 +469,7 @@ export function CallModal({ call, onClose }: CallModalProps) {
         target_user_id: call.targetUserId,
         is_video_enabled: false,
         is_screen_sharing: false,
+        chat_id: call.chatId,
       });
     } else {
       // 2. Включаем камеру (в том числе при аудиозвонке!)
@@ -421,6 +500,7 @@ export function CallModal({ call, onClose }: CallModalProps) {
           target_user_id: call.targetUserId,
           is_video_enabled: true,
           is_screen_sharing: false,
+          chat_id: call.chatId,
         });
       } catch (e) {
         toast.error('Не удалось активировать камеру');
@@ -461,6 +541,7 @@ export function CallModal({ call, onClose }: CallModalProps) {
         target_user_id: call.targetUserId,
         is_video_enabled: Boolean(cameraTrackRef.current),
         is_screen_sharing: false,
+        chat_id: call.chatId,
       });
     } else {
       // Запускаем демонстрацию экрана
@@ -491,6 +572,7 @@ export function CallModal({ call, onClose }: CallModalProps) {
           target_user_id: call.targetUserId,
           is_video_enabled: true,
           is_screen_sharing: true,
+          chat_id: call.chatId,
         });
 
         // Событие завершения показа через плашку браузера
@@ -549,6 +631,9 @@ export function CallModal({ call, onClose }: CallModalProps) {
 
         {/* Основная видео / аудио область */}
         <div className="relative flex flex-1 items-center justify-center bg-[#0c1218] overflow-hidden">
+          {/* Аудио собеседника (скрытое, но гарантирует воспроизведение звука независимо от видео) */}
+          <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+
           {/* Видео собеседника */}
           <video
             ref={remoteVideoRef}

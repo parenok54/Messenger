@@ -19,11 +19,13 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     display_name: Optional[str] = None
     bio: Optional[str] = None
+    email: Optional[str] = None
 
 
 class UserOut(BaseModel):
     id: uuid.UUID
-    phone: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
     username: Optional[str]
     display_name: str
     bio: Optional[str]

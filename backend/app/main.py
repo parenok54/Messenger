@@ -1,4 +1,5 @@
 import os
+import asyncio
 from fastapi import FastAPI, WebSocket, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +23,8 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as db:
         await db.execute(update(User).values(is_online=False))
         await db.commit()
+
+    # Telegram бот временно отключен по запросу
     yield
     # Завершение
     await close_redis()
@@ -53,8 +56,22 @@ app.include_router(messages.router, prefix="/api/v1")
 
 # Static files (uploads)
 # Файлы раздаются без авторизации, но имена генерируются на сервере (UUID),
-# поэтому угадать ссылку невозможно. В продакшене этот путь лучше закрыть
-# nginx/CDN с ограничением по Referer или подписанными ссылками.
+# поэтому угадать ссылку невозможно.
+import mimetypes
+
+mimetypes.init()
+mimetypes.add_type("audio/webm", ".webm")
+mimetypes.add_type("audio/webm", ".weba")
+mimetypes.add_type("audio/ogg", ".ogg")
+mimetypes.add_type("audio/ogg", ".opus")
+mimetypes.add_type("audio/mp4", ".m4a")
+mimetypes.add_type("audio/mpeg", ".mp3")
+mimetypes.add_type("audio/wav", ".wav")
+mimetypes.add_type("video/mp4", ".mp4")
+mimetypes.add_type("video/webm", ".webm")
+mimetypes.add_type("video/quicktime", ".mov")
+mimetypes.add_type("image/webp", ".webp")
+
 UPLOAD_DIR = settings.UPLOAD_DIR
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")

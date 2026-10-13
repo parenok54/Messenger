@@ -34,6 +34,16 @@ export interface Translations {
   usernamePlaceholder: string;
   loginOrEmailLabel: string;
   loginOrEmailPlaceholder: string;
+  loginInputLabel: string;
+  loginInputPlaceholder: string;
+  regTitle: string;
+  regSubtitle: string;
+  regTypePhone: string;
+  regTypeEmail: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  otpSentTo: (target: string, channel: 'email' | 'phone') => string;
+  sendOtpBtn: string;
   dontHaveAccount: string;
   alreadyHaveAccount: string;
   registerBtn: string;
@@ -203,8 +213,21 @@ export const translations: Record<Lang, Translations> = {
     usernamePlaceholder: 'например: alex_dev',
     loginOrEmailLabel: 'Логин, email или телефон',
     loginOrEmailPlaceholder: 'alex_dev, email или телефон',
-    dontHaveAccount: 'Нет аккаунта? Зарегистрироваться',
-    alreadyHaveAccount: 'Уже есть аккаунт? Войти',
+    loginInputLabel: 'Номер телефона или Email',
+    loginInputPlaceholder: '+7 999 123 45 67 или name@mail.com',
+    regTitle: 'Создание аккаунта',
+    regSubtitle: 'Зарегистрируйтесь для общения в Messenger',
+    regTypePhone: 'По телефону',
+    regTypeEmail: 'По почте (Email)',
+    emailLabel: 'Электронная почта',
+    emailPlaceholder: 'name@example.com',
+    otpSentTo: (target, ch) =>
+      ch === 'email'
+        ? `Проверочный код отправлен на почту ${target}`
+        : `Проверочный код отправлен на номер ${target}`,
+    sendOtpBtn: 'Получить код',
+    dontHaveAccount: 'Нету аккаунта? Зарегистрируйтесь',
+    alreadyHaveAccount: 'Уже есть аккаунт? Войдите',
     registerBtn: 'Зарегистрироваться',
     quickDemoTitle: 'Быстрый вход для тестирования',
     quickDemoSubtitle: 'Войдите в один клик под готовым тестовым профилем:',
@@ -366,6 +389,19 @@ export const translations: Record<Lang, Translations> = {
     usernamePlaceholder: 'мисалы: alex_dev',
     loginOrEmailLabel: 'Логин, email же телефон',
     loginOrEmailPlaceholder: 'alex_dev, email же телефон',
+    loginInputLabel: 'Телефон номери же Email',
+    loginInputPlaceholder: '+996 555 123 456 же name@mail.com',
+    regTitle: 'Аккаунт түзүү',
+    regSubtitle: 'Messenger аркылуу баарлашуу үчүн катталыңыз',
+    regTypePhone: 'Телефон аркылуу',
+    regTypeEmail: 'Почта аркылуу (Email)',
+    emailLabel: 'Электрондук почта',
+    emailPlaceholder: 'name@example.com',
+    otpSentTo: (target, ch) =>
+      ch === 'email'
+        ? `Ырастоо коду ${target} почтасына жөнөтүлдү`
+        : `Ырастоо коду ${target} номерине жөнөтүлдү`,
+    sendOtpBtn: 'Кодду алуу',
     dontHaveAccount: 'Аккаунтуңуз жокпу? Катталуу',
     alreadyHaveAccount: 'Аккаунтуңуз барбы? Кирүү',
     registerBtn: 'Катталуу',
@@ -529,6 +565,19 @@ export const translations: Record<Lang, Translations> = {
     usernamePlaceholder: 'e.g. alex_dev',
     loginOrEmailLabel: 'Username, email or phone',
     loginOrEmailPlaceholder: 'alex_dev, email or phone',
+    loginInputLabel: 'Phone number or Email',
+    loginInputPlaceholder: '+1 555 123 4567 or user@mail.com',
+    regTitle: 'Create an Account',
+    regSubtitle: 'Sign up to start messaging on Messenger',
+    regTypePhone: 'By Phone',
+    regTypeEmail: 'By Email',
+    emailLabel: 'Email address',
+    emailPlaceholder: 'name@example.com',
+    otpSentTo: (target, ch) =>
+      ch === 'email'
+        ? `Verification code sent to email ${target}`
+        : `Verification code sent to phone ${target}`,
+    sendOtpBtn: 'Get Code',
     dontHaveAccount: "Don't have an account? Sign up",
     alreadyHaveAccount: 'Already have an account? Sign in',
     registerBtn: 'Create account',

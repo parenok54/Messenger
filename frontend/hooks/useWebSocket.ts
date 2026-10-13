@@ -10,12 +10,28 @@ import { pushNotifications } from '@/lib/notifications';
 // Глобальный диспетчер событий WebRTC (чтобы окно звонка могло слушать answer/candidates)
 type WsCallback = (data: any) => void;
 const callListeners = new Set<WsCallback>();
+const earlyCallEventsBuffer: any[] = [];
 
 export function subscribeToCallEvents(callback: WsCallback) {
   callListeners.add(callback);
+  if (earlyCallEventsBuffer.length > 0) {
+    const eventsToDrain = [...earlyCallEventsBuffer];
+    earlyCallEventsBuffer.length = 0;
+    eventsToDrain.forEach((evt) => {
+      try {
+        callback(evt);
+      } catch (err) {
+        console.error('Error delivering buffered call event', err);
+      }
+    });
+  }
   return () => {
     callListeners.delete(callback);
   };
+}
+
+export function clearCallEventsBuffer() {
+  earlyCallEventsBuffer.length = 0;
 }
 
 export function useWebSocket(refreshChats?: () => void) {
@@ -59,7 +75,27 @@ export function useWebSocket(refreshChats?: () => void) {
             setIncomingCall,
           } = useChatStore.getState();
 
-          callListeners.forEach((listener) => listener(data));
+          const isCallEvent =
+            data.type === 'call_offer' ||
+            data.type === 'call_answer' ||
+            data.type === 'ice_candidate' ||
+            data.type === 'call_end' ||
+            data.type === 'media_state';
+
+          if (isCallEvent) {
+            if (callListeners.size === 0) {
+              earlyCallEventsBuffer.push(data);
+              if (earlyCallEventsBuffer.length > 100) earlyCallEventsBuffer.shift();
+            } else {
+              callListeners.forEach((listener) => {
+                try {
+                  listener(data);
+                } catch (e) {
+                  console.error('Error in callListener', e);
+                }
+              });
+            }
+          }
 
           switch (data.type) {
             case 'new_message': {
@@ -148,6 +184,7 @@ export function useWebSocket(refreshChats?: () => void) {
                     JSON.stringify({
                       type: 'call_end',
                       target_user_id: data.from_user_id,
+                      chat_id: data.chat_id,
                       reason: 'busy',
                     })
                   );
@@ -170,6 +207,7 @@ export function useWebSocket(refreshChats?: () => void) {
               });
               break;
             case 'call_end':
+              clearCallEventsBuffer();
               soundEffects.stopCallSounds();
               soundEffects.playCallEnd();
               useChatStore.getState().setActiveCall(null);

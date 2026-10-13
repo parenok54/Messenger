@@ -35,6 +35,7 @@ export function IncomingCallBanner() {
     sendWsRaw({
       type: 'call_end',
       target_user_id: incomingCall.targetUserId,
+      chat_id: incomingCall.chatId,
       reason: 'declined',
     });
     setIncomingCall(null);

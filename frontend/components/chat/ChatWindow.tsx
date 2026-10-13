@@ -48,6 +48,13 @@ import { VoiceWaveformPlayer } from './VoiceWaveformPlayer';
 import { MediaLightboxModal, MediaItem } from './MediaLightboxModal';
 import { ChatInfoModal } from './ChatInfoModal';
 
+function formatFileSize(bytes?: number | null): string {
+  if (!bytes || bytes <= 0) return '';
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+}
+
 function getMemberBadge(member?: ChatMember | null, lang: Lang = 'ru') {
   if (!member) return null;
   const isOwner = member.role === 'owner';
@@ -414,13 +421,20 @@ export function ChatWindow() {
     const file = e.target.files?.[0];
     if (!file || !activeChatId) return;
 
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('Файл слишком большой (максимум 25 МБ)');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     try {
       toast.loading('Загрузка файла...', { id: 'upload' });
-      await messagesApi.uploadFile(activeChatId, file);
+      await messagesApi.uploadFile(activeChatId, file, replyingMessage?.id);
       soundEffects.playSent();
       toast.success('Файл отправлен', { id: 'upload' });
-    } catch {
-      toast.error('Ошибка отправки файла', { id: 'upload' });
+      setReplyingMessage(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Ошибка отправки файла', { id: 'upload' });
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -430,7 +444,21 @@ export function ChatWindow() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      let mimeType = '';
+      if (typeof MediaRecorder !== 'undefined') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          mimeType = 'audio/webm';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+          mimeType = 'audio/aac';
+        } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+          mimeType = 'audio/ogg;codecs=opus';
+        }
+      }
+      const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -439,18 +467,22 @@ export function ChatWindow() {
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, {
-          type: 'audio/webm',
+        const actualMime = mediaRecorder.mimeType || mimeType || 'audio/webm';
+        const cleanMime = actualMime.split(';')[0];
+        const ext = cleanMime.includes('mp4') || cleanMime.includes('aac') ? 'm4a' : cleanMime.includes('ogg') ? 'ogg' : 'webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: cleanMime });
+        const audioFile = new File([audioBlob], `voice_${Date.now()}.${ext}`, {
+          type: cleanMime,
         });
         if (activeChatId) {
           try {
             toast.loading('Отправка голосового сообщения...', { id: 'voice' });
-            await messagesApi.uploadFile(activeChatId, audioFile);
+            await messagesApi.uploadFile(activeChatId, audioFile, replyingMessage?.id);
             soundEffects.playSent();
             toast.success('Голосовое отправлено', { id: 'voice' });
-          } catch {
-            toast.error('Ошибка отправки аудио', { id: 'voice' });
+            setReplyingMessage(null);
+          } catch (err: any) {
+            toast.error(err.response?.data?.detail || 'Ошибка отправки аудио', { id: 'voice' });
           }
         }
         stream.getTracks().forEach((track) => track.stop());
@@ -1127,6 +1159,8 @@ export function ChatWindow() {
                           >
                             <video
                               src={msg.file_url}
+                              preload="metadata"
+                              playsInline
                               className="max-h-72 w-full object-cover rounded-xl"
                             />
                             <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
@@ -1142,18 +1176,26 @@ export function ChatWindow() {
                           <VoiceWaveformPlayer fileUrl={msg.file_url} isMe={isMe} />
                         )}
 
-                    {/* Обычный файл */}
-                    {msg.type === 'file' && msg.file_url && (
-                      <a
-                        href={msg.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mb-1.5 flex items-center space-x-2 rounded-lg bg-black/20 p-2 text-sm text-blue-300 hover:text-blue-200 transition"
-                      >
-                        <Paperclip size={16} />
-                        <span className="truncate font-medium">{msg.file_name || 'Скачать файл'}</span>
-                      </a>
-                    )}
+                        {/* Обычный файл */}
+                        {msg.type === 'file' && msg.file_url && (
+                          <a
+                            href={msg.file_url}
+                            download={msg.file_name || 'file'}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mb-1.5 flex items-center space-x-2.5 rounded-xl bg-black/25 p-2.5 text-sm text-blue-300 hover:text-blue-200 hover:bg-black/35 transition"
+                          >
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#2AABEE]/20 text-[#2AABEE] flex-shrink-0">
+                              <Paperclip size={18} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium text-white text-xs">{msg.file_name || 'Скачать файл'}</p>
+                              {msg.file_size ? (
+                                <p className="text-[10px] text-gray-400 mt-0.5">{formatFileSize(msg.file_size)}</p>
+                              ) : null}
+                            </div>
+                          </a>
+                        )}
 
                     {/* Текст сообщения */}
                     {msg.content && (

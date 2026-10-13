@@ -305,34 +305,45 @@ async def handle_call_signal(
     if target_id == user.id:
         return {"type": "error", "detail": "Нельзя позвонить самому себе"}
 
-    common_chat = await db.execute(
-        select(Chat)
-        .join(ChatMember, Chat.id == ChatMember.chat_id)
-        .where(
-            Chat.type == ChatType.private,
-            ChatMember.user_id == user.id,
-            Chat.id.in_(
-                select(ChatMember.chat_id).where(ChatMember.user_id == target_id)
-            ),
-        )
-        .limit(1)
-    )
-    shared_chat = common_chat.scalar_one_or_none()
-    if not shared_chat:
-        return {"type": "error", "detail": "Нет общего чата с этим пользователем"}
-
     chat_id = _parse_uuid(data.get("chat_id"))
-    if chat_id and chat_id != shared_chat.id:
-        return {"type": "error", "detail": "Некорректный chat_id"}
+    effective_chat_id = None
 
-    target = await db.get(User, target_id)
-    if not target:
-        return {"type": "error", "detail": "Пользователь не найден"}
+    if chat_id:
+        # Проверяем, что оба пользователя состоят в переданном чате
+        m_res = await db.execute(
+            select(ChatMember.user_id).where(
+                ChatMember.chat_id == chat_id,
+                ChatMember.user_id.in_([user.id, target_id]),
+            )
+        )
+        members = set(m_res.scalars().all())
+        if user.id in members and target_id in members:
+            effective_chat_id = chat_id
+        else:
+            return {"type": "error", "detail": "Пользователи не состоят в общем чате"}
+    else:
+        # Поиск общего приватного чата
+        common_chat = await db.execute(
+            select(Chat)
+            .join(ChatMember, Chat.id == ChatMember.chat_id)
+            .where(
+                Chat.type == ChatType.private,
+                ChatMember.user_id == user.id,
+                Chat.id.in_(
+                    select(ChatMember.chat_id).where(ChatMember.user_id == target_id)
+                ),
+            )
+            .limit(1)
+        )
+        shared_chat = common_chat.scalar_one_or_none()
+        if not shared_chat:
+            return {"type": "error", "detail": "Нет общего чата с этим пользователем"}
+        effective_chat_id = shared_chat.id
 
     payload: dict = {
         "type": msg_type,
         "from_user_id": str(user.id),
-        "chat_id": str(shared_chat.id),
+        "chat_id": str(effective_chat_id),
     }
 
     if msg_type == "call_offer":

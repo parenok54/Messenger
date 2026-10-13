@@ -45,6 +45,17 @@ async def update_me(
             raise HTTPException(400, "Такой username уже занят")
         update_data["username"] = username
 
+    if "email" in update_data and update_data["email"]:
+        email_clean = update_data["email"].strip().lower()
+        if "@" not in email_clean:
+            raise HTTPException(400, "Некорректный адрес электронной почты")
+        dup_email = await db.execute(
+            select(User).where(User.email == email_clean, User.id != current_user.id)
+        )
+        if dup_email.scalar_one_or_none():
+            raise HTTPException(400, "Этот email уже используется другим пользователем")
+        update_data["email"] = email_clean
+
     for field, value in update_data.items():
         setattr(current_user, field, value)
         

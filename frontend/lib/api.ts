@@ -68,10 +68,40 @@ api.interceptors.response.use(
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export const authApi = {
-  sendCode: (phone: string) =>
-    api.post('/auth/send-code', { phone }),
-  verify: (phone: string, code: string, display_name?: string) =>
-    api.post('/auth/verify', { phone, code, display_name }),
+  sendCode: (
+    identifier: string,
+    purpose: 'login' | 'register' = 'login',
+    reg_phone?: string,
+    display_name?: string,
+    link_email?: string
+  ) =>
+    api.post('/auth/send-code', {
+      identifier,
+      phone: identifier,
+      email: identifier,
+      purpose,
+      reg_phone,
+      display_name,
+      link_email,
+    }),
+  verify: (
+    identifier: string,
+    code: string,
+    display_name?: string,
+    username?: string,
+    reg_phone?: string,
+    link_email?: string
+  ) =>
+    api.post('/auth/verify', {
+      identifier,
+      phone: identifier,
+      email: identifier,
+      code,
+      display_name,
+      username,
+      reg_phone,
+      link_email,
+    }),
   loginPassword: (login: string, password: string) =>
     api.post('/auth/login-password', { login, password }),
   registerPassword: (data: {
@@ -89,7 +119,7 @@ export const authApi = {
 // ─── Users ───────────────────────────────────────────────────────────────────
 export const usersApi = {
   getMe: () => api.get('/users/me'),
-  updateMe: (data: { username?: string; display_name?: string; bio?: string }) =>
+  updateMe: (data: { username?: string; display_name?: string; bio?: string; email?: string }) =>
     api.patch('/users/me', data),
   uploadAvatar: (file: File) => {
     const form = new FormData();

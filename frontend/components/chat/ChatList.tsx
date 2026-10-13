@@ -33,7 +33,7 @@ export function ChatList({ onSelectChat }: ChatListProps) {
   const chats = useChatStore((s) => s.chats);
   const activeChatId = useChatStore((s) => s.activeChatId);
   const currentUserId = useAuthStore((s) => s.user?.id);
-  const { t } = useLanguageStore();
+  const { t, lang } = useLanguageStore();
 
   const getChatDetails = (chat: Chat) => {
     let title = chat.title || 'Чат';
@@ -157,7 +157,9 @@ export function ChatList({ onSelectChat }: ChatListProps) {
                         lastMsg.content ||
                         (lastMsg.type === 'image'
                           ? t.photoAttachment
-                          : lastMsg.type === 'voice'
+                          : lastMsg.type === 'video'
+                          ? (lang === 'ky' ? '📹 Видео' : lang === 'en' ? '📹 Video' : '📹 Видео')
+                          : lastMsg.type === 'voice' || lastMsg.type === 'audio'
                           ? t.voiceAttachment
                           : t.fileAttachment)
                       ) : (
