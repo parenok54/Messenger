@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 23, 33, 43;
+  --background-end-rgb: 23, 33, 43;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: #0e1621;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Telegram Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Telegram Chat Background Animated Pattern */
+.tg-chat-bg {
+  position: relative;
+  background-color: #0e1621;
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.065) 1.2px, transparent 1.2px),
+    radial-gradient(rgba(42, 171, 238, 0.08) 1.6px, transparent 1.6px);
+  background-size: 28px 28px, 56px 56px;
+  background-position: 0 0, 14px 14px;
+  animation: tgDotsDrift 60s linear infinite;
+  will-change: background-position;
+}
+
+@keyframes tgDotsDrift {
+  0% {
+    background-position: 0px 0px, 14px 14px;
+  }
+  100% {
+    background-position: 112px -112px, -98px 126px;
+  }
+}
+
+/* Floating individual ambient particles / star dots */
+@keyframes floatDot {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+    opacity: 0.25;
+  }
+  25% {
+    transform: translate(14px, -20px) scale(1.3);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate(-10px, -35px) scale(1.1);
+    opacity: 0.4;
+  }
+  75% {
+    transform: translate(18px, -15px) scale(1.4);
+    opacity: 0.9;
+  }
+}
+
+.animate-float-dot {
+  animation: floatDot 16s ease-in-out infinite;
+}
+
+/* Gentle pulse breathing for center logo glow */
+@keyframes iconGlowPulse {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.08);
+  }
+}
+
+.animate-icon-glow {
+  animation: iconGlowPulse 4s ease-in-out infinite;
+}
+
+/* Date Pill in Chat */
+.date-badge {
+  background: rgba(14, 22, 33, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Smooth message bubble animations */
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-message {
+  animation: messageSlideIn 0.18s ease-out forwards;
+}
+
+/* Glass panel */
+.tg-glass {
+  background: rgba(23, 33, 43, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Floating Orbs Animation for Login Screen */
+@keyframes floatOrb1 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(90px, -70px) scale(1.15);
+  }
+  66% {
+    transform: translate(-60px, 80px) scale(0.92);
+  }
+}
+
+@keyframes floatOrb2 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(-100px, 90px) scale(1.12);
+  }
+  66% {
+    transform: translate(70px, -80px) scale(0.94);
+  }
+}
+
+@keyframes floatOrb3 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(80px, 60px) scale(1.2);
+  }
+}
+
+.animate-orb-1 {
+  animation: floatOrb1 16s ease-in-out infinite;
+}
+
+.animate-orb-2 {
+  animation: floatOrb2 20s ease-in-out infinite;
+}
+
+.animate-orb-3 {
+  animation: floatOrb3 14s ease-in-out infinite;
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-menu-in {
+  animation: menuIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top;
+}

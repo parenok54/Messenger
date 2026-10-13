@@ -1,0 +1,28 @@
+# Секреты НЕ должны попадать в образ (Dockerfile делает COPY . .)
+.env
+.env.*
+!.env.example
+
+# Виртуальное окружение и артефакты Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Загруженные файлы и локальные БД
+uploads/
+*.sqlite3
+*.db
+
+# Прочее
+.git/
+.gitignore
+*.log
+tests/
+README.md
