@@ -1,24 +1,42 @@
-import bcrypt
+import hashlib
+import hmac
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 
 from app.core.config import settings
 
+try:
+    import bcrypt
+    _HAS_BCRYPT = True
+except ImportError:
+    _HAS_BCRYPT = False
+
 ALGORITHM = "HS256"
 
 
 def hash_password(password: str) -> str:
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode("utf-8")[:72], salt).decode("utf-8")
+    if _HAS_BCRYPT:
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(password.encode("utf-8")[:72], salt).decode("utf-8")
+    salt = os.urandom(16).hex()
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
+    return f"pbkdf2:{salt}:{key}"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
-        return bcrypt.checkpw(
-            plain_password.encode("utf-8")[:72],
-            hashed_password.encode("utf-8"),
-        )
+        if hashed_password.startswith("pbkdf2:"):
+            _, salt, key = hashed_password.split(":")
+            check_key = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
+            return hmac.compare_digest(key, check_key)
+        if _HAS_BCRYPT:
+            return bcrypt.checkpw(
+                plain_password.encode("utf-8")[:72],
+                hashed_password.encode("utf-8"),
+            )
+        return False
     except Exception:
         return False
 

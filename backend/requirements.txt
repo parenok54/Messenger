@@ -16,6 +16,7 @@ python-dotenv==1.0.1
 psycopg2-binary==2.9.9
 greenlet==3.1.1
 aiofiles==24.1.0
+bcrypt==4.2.1
 
 # --- Разработка и тесты ---
 pytest==8.3.4
