@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/logo.png" alt="Messenger Logo" width="128" />
+
 # Messenger
 
 **A Telegram-style real-time messenger** — 1-to-1 chats, groups & channels, media, and peer-to-peer audio/video calls.
@@ -18,8 +20,6 @@
 ---
 
 ## 🎬 Demo
-
-<!-- TODO: замени заглушки на реальные скриншоты/GIF. Рекомендую GIF на 5-8 секунд. -->
 
 <table>
   <tr>
